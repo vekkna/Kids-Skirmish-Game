@@ -1,0 +1,920 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Table Troops Playtest</title>
+  <style>
+    :root {
+      --bg: #f4efe6;
+      --panel: #fffaf3;
+      --ink: #1b1f2a;
+      --line: #d7cbb9;
+      --a: #e4572e;
+      --b: #2e86ab;
+      --good: #2f9e44;
+      --warn: #d9480f;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 600px at 10% -20%, #fffdf8 5%, transparent 55%),
+        radial-gradient(800px 500px at 100% 0%, #efe8db 10%, transparent 60%),
+        var(--bg);
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: minmax(280px, 350px) 1fr;
+      gap: 16px;
+      min-height: 100vh;
+      padding: 16px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: 1.25rem;
+    }
+
+    h2 {
+      margin: 14px 0 8px;
+      font-size: 1rem;
+    }
+
+    .row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    button, select, input {
+      font: inherit;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 8px 10px;
+      background: #fff;
+      cursor: pointer;
+    }
+
+    button:hover { border-color: #bcae97; }
+    button.primary { background: #fff7ec; border-color: #e9d2ae; }
+
+    .pill {
+      border-radius: 999px;
+      padding: 4px 10px;
+      border: 1px solid var(--line);
+      font-size: 0.9rem;
+    }
+
+    .team-a { background: color-mix(in srgb, var(--a) 18%, white); border-color: color-mix(in srgb, var(--a) 50%, white); }
+    .team-b { background: color-mix(in srgb, var(--b) 18%, white); border-color: color-mix(in srgb, var(--b) 50%, white); }
+
+    .board-wrap {
+      display: grid;
+      place-items: center;
+      min-height: 0;
+    }
+
+    .board {
+      width: min(86vmin, 900px);
+      aspect-ratio: 1;
+      position: relative;
+      border: 2px solid #8f8069;
+      border-radius: 14px;
+      background:
+        linear-gradient(90deg, rgba(0,0,0,.06) 1px, transparent 1px) 0 0 / 8.333% 8.333%,
+        linear-gradient(0deg, rgba(0,0,0,.06) 1px, transparent 1px) 0 0 / 8.333% 8.333%,
+        linear-gradient(180deg, #efe7d8, #e4dbc9);
+      overflow: hidden;
+      touch-action: none;
+    }
+
+    .edge {
+      position: absolute;
+      left: 0;
+      width: 100%;
+      height: 8%;
+      pointer-events: none;
+      opacity: .25;
+    }
+
+    .edge.top { top: 0; background: var(--b); }
+    .edge.bottom { bottom: 0; background: var(--a); }
+    .los-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 2;
+      overflow: visible;
+    }
+    .move-readout {
+      position: absolute;
+      left: 0;
+      top: 0;
+      transform: translate(-50%, -130%);
+      z-index: 3;
+      background: #ffffffd9;
+      border: 1px solid #bfae93;
+      border-radius: 8px;
+      padding: 4px 8px;
+      font-size: .82rem;
+      font-weight: 700;
+      display: none;
+      pointer-events: none;
+    }
+
+    .terrain-tray {
+      margin-top: 10px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      padding: 8px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .terrain-chip {
+      width: 56px;
+      height: 34px;
+      border: 2px dashed #8f8069;
+      border-radius: 8px;
+      background: #e9e0d2;
+      display: grid;
+      place-items: center;
+      cursor: grab;
+      user-select: none;
+      font-size: .75rem;
+      font-weight: 700;
+      color: #5a503f;
+    }
+
+    .terrain-chip:active { cursor: grabbing; }
+
+    .unit {
+      position: absolute;
+      width: 52px;
+      height: 52px;
+      margin-left: -26px;
+      margin-top: -26px;
+      border-radius: 10px;
+      border: 2px solid #00000022;
+      color: #1a1a1a;
+      font-weight: 700;
+      display: grid;
+      place-items: center;
+      user-select: none;
+      cursor: grab;
+      transition: transform .12s ease, filter .12s ease, box-shadow .12s ease;
+      box-shadow: 0 3px 8px rgba(0,0,0,.16);
+    }
+
+    .unit.team-a { background: var(--a); }
+    .unit.team-b { background: var(--b); }
+    .unit.dragging { cursor: grabbing; filter: brightness(1.1); }
+    .unit.ghost {
+      pointer-events: none;
+      opacity: .35;
+      box-shadow: none;
+      outline: 2px dashed #ffffffcc;
+      outline-offset: 2px;
+    }
+    .unit.selected { outline: 3px solid #fff; box-shadow: 0 0 0 3px #21252955; }
+    .unit.lying { filter: grayscale(1) brightness(.8); }
+    .unit .badge {
+      font-size: .7rem;
+      background: #ffffffcc;
+      border-radius: 999px;
+      padding: 2px 6px;
+    }
+
+    .terrain {
+      position: absolute;
+      border: 2px solid #726249;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #d5cab8, #bfb096);
+      box-shadow: 0 3px 8px rgba(0,0,0,.16);
+      user-select: none;
+      cursor: grab;
+      display: grid;
+      place-items: center;
+      color: #4f4435;
+      font-size: .72rem;
+      font-weight: 700;
+      overflow: visible;
+    }
+
+    .terrain.dragging { cursor: grabbing; filter: brightness(1.05); }
+    .terrain.selected { outline: 3px solid #fff; box-shadow: 0 0 0 3px #21252955; }
+    .terrain-label {
+      pointer-events: none;
+      background: #ffffffb8;
+      border-radius: 999px;
+      padding: 2px 6px;
+    }
+    .resize-handle {
+      position: absolute;
+      background: #fff;
+      border: 1px solid #6b5c46;
+      border-radius: 3px;
+      opacity: 0;
+      pointer-events: none;
+      touch-action: none;
+    }
+    .terrain.selected .resize-handle {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .resize-handle.e,
+    .resize-handle.w {
+      width: 8px;
+      height: 22px;
+      top: calc(50% - 11px);
+      cursor: ew-resize;
+    }
+    .resize-handle.e { right: -6px; }
+    .resize-handle.w { left: -6px; }
+    .resize-handle.n,
+    .resize-handle.s {
+      width: 22px;
+      height: 8px;
+      left: calc(50% - 11px);
+      cursor: ns-resize;
+    }
+    .resize-handle.n { top: -6px; }
+    .resize-handle.s { bottom: -6px; }
+
+    .results {
+      padding: 8px;
+      min-height: 40px;
+      border: 1px dashed var(--line);
+      border-radius: 10px;
+      background: #fff;
+      margin-top: 8px;
+      font-size: .95rem;
+    }
+
+    .dice {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .die {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: 1px solid #b9ab92;
+      background: #fff;
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+    }
+
+    .die.hit { border-color: var(--good); color: var(--good); }
+
+    .log {
+      margin-top: 12px;
+      max-height: 180px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      padding: 8px;
+      font-size: .9rem;
+    }
+
+    .log-item { margin-bottom: 6px; }
+
+    .hint {
+      font-size: .85rem;
+      color: #5c5347;
+    }
+
+    @media (max-width: 980px) {
+      .app { grid-template-columns: 1fr; }
+      .board { width: min(94vw, 700px); }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="panel">
+      <h1>Table Troops Playtest Board</h1>
+      <div class="row">
+        <span id="turnPill" class="pill team-a">Turn: Player A</span>
+        <button id="nextTurnBtn">Next Turn</button>
+      </div>
+      <div class="row">
+        <button id="setupBtn" class="primary">Reset 5v5 Setup</button>
+        <button id="clearBtn">Clear Units</button>
+      </div>
+      <div class="hint">Drag units and terrain. Hover an item and use mouse wheel or left/right arrow keys to rotate it.</div>
+      <div class="hint">Double-click a unit for line-of-sight mode; right-click to stop LOS. Right-click unit toggles lying, right-click terrain removes it.</div>
+
+      <h2>Terrain Palette</h2>
+      <div class="terrain-tray" id="terrainTray">
+        <div class="terrain-chip" data-terrain-type="Wall">Wall</div>
+        <div class="terrain-chip" data-terrain-type="Crate">Crate</div>
+        <div class="terrain-chip" data-terrain-type="Rock">Rock</div>
+        <div class="terrain-chip" data-terrain-type="Barricade">Cover</div>
+      </div>
+
+      <h2>Selected Piece</h2>
+      <div id="selectedInfo" class="results">No unit or terrain selected.</div>
+      <div class="row">
+        <button id="toggleLyingBtn">Toggle Lying / Standing</button>
+        <button id="deleteUnitBtn">Delete Unit</button>
+      </div>
+      <div class="row">
+        <button id="addA">Add Player A Unit</button>
+        <button id="addB">Add Player B Unit</button>
+      </div>
+
+      <h2>Dice Roller</h2>
+      <div class="row">
+        <label for="diceCount">Dice:</label>
+        <input id="diceCount" type="number" min="1" max="10" value="1" style="width:70px;">
+        <label for="hitOn">Hit On:</label>
+        <select id="hitOn">
+          <option value="5">5+ (normal)</option>
+          <option value="6">6 only (fire back)</option>
+        </select>
+        <button id="rollBtn" class="primary">Roll</button>
+      </div>
+
+      <div class="row">
+        <button id="presetShootBtn">Preset Shoot Dice</button>
+        <button id="presetHealBtn">Preset Heal Dice</button>
+      </div>
+
+      <div class="row">
+        <label><input type="checkbox" id="closeRange"> Close Range</label>
+        <label><input type="checkbox" id="openShot"> Open Shot</label>
+        <label><input type="checkbox" id="supportFire"> Supporting Fire</label>
+      </div>
+      <div class="row">
+        <label><input type="checkbox" id="hiddenHeal"> Hidden (for heal)</label>
+      </div>
+
+      <div id="rollResult" class="results">Roll results will appear here.</div>
+      <div id="diceTray" class="dice"></div>
+
+      <div class="log" id="log"></div>
+    </section>
+
+    <section class="board-wrap">
+      <div class="board panel" id="board">
+        <div class="edge top"></div>
+        <div class="edge bottom"></div>
+        <svg id="losLayer" class="los-layer" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <line id="losLine" x1="0" y1="0" x2="0" y2="0" stroke="#111" stroke-width="0.35" stroke-dasharray="1.2 0.8" stroke-linecap="round" visibility="hidden"></line>
+        </svg>
+        <div id="moveReadout" class="move-readout"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const board = document.getElementById("board");
+    const logEl = document.getElementById("log");
+    const selectedInfo = document.getElementById("selectedInfo");
+    const turnPill = document.getElementById("turnPill");
+    const terrainTray = document.getElementById("terrainTray");
+    const diceCountInput = document.getElementById("diceCount");
+    const hitOnSelect = document.getElementById("hitOn");
+    const rollResult = document.getElementById("rollResult");
+    const diceTray = document.getElementById("diceTray");
+    const losLine = document.getElementById("losLine");
+    const moveReadout = document.getElementById("moveReadout");
+
+    let units = [];
+    let terrains = [];
+    let selectedId = null;
+    let selectedType = "unit";
+    let dragState = null;
+    let resizeState = null;
+    let hovered = null;
+    let losState = null;
+    let lastUnitClick = null;
+    let nextUnitNumber = { A: 1, B: 1 };
+    let nextTerrainId = 1;
+    let currentTurn = "A";
+
+    function log(msg) {
+      const div = document.createElement("div");
+      div.className = "log-item";
+      const time = new Date().toLocaleTimeString();
+      div.textContent = `[${time}] ${msg}`;
+      logEl.prepend(div);
+    }
+
+    function clamp(n, min, max) {
+      return Math.min(max, Math.max(min, n));
+    }
+
+    function createUnit(team, xPct, yPct, lying = false) {
+      const id = `${team}${nextUnitNumber[team]++}`;
+      units.push({ id, team, xPct, yPct, lying, rotation: 0 });
+      render();
+      log(`Added ${team === "A" ? "Player A" : "Player B"} unit ${id}.`);
+    }
+
+    function createTerrain(type, xPct, yPct, rotation = 0) {
+      const id = `T${nextTerrainId++}`;
+      terrains.push({ id, type, xPct, yPct, rotation, wPct: 12, hPct: 7 });
+      render();
+      log(`Placed terrain ${id} (${type}).`);
+    }
+
+    function setupDefault() {
+      units = [];
+      terrains = [];
+      nextUnitNumber = { A: 1, B: 1 };
+      nextTerrainId = 1;
+      selectedId = null;
+      selectedType = "unit";
+      const cols = [14, 32, 50, 68, 86];
+      cols.forEach((x, i) => {
+        createUnit("A", x, 92 - (i % 2) * 3);
+        createUnit("B", x, 8 + (i % 2) * 3);
+      });
+      log("Reset board with 5 units per side.");
+      render();
+    }
+
+    function render() {
+      board.querySelectorAll(".unit, .terrain").forEach((el) => el.remove());
+      for (const u of units) {
+        if (dragState && dragState.type === "unit" && dragState.id === u.id) {
+          const ghost = document.createElement("div");
+          ghost.className = `unit ghost team-${u.team.toLowerCase()}${u.lying ? " lying" : ""}`;
+          ghost.style.left = `${dragState.startXPct}%`;
+          ghost.style.top = `${dragState.startYPct}%`;
+          ghost.style.transform = `rotate(${u.rotation}deg)`;
+          ghost.innerHTML = `<span class="badge">${u.id}</span>`;
+          board.appendChild(ghost);
+        }
+        const el = document.createElement("div");
+        const selected = selectedType === "unit" && u.id === selectedId;
+        el.className = `unit team-${u.team.toLowerCase()}${u.lying ? " lying" : ""}${selected ? " selected" : ""}`;
+        el.dataset.type = "unit";
+        el.dataset.id = u.id;
+        el.style.left = `${u.xPct}%`;
+        el.style.top = `${u.yPct}%`;
+        el.style.transform = `rotate(${u.rotation}deg)`;
+        el.innerHTML = `<span class="badge">${u.id}</span>`;
+        board.appendChild(el);
+      }
+      for (const t of terrains) {
+        const el = document.createElement("div");
+        const selected = selectedType === "terrain" && t.id === selectedId;
+        el.className = `terrain${selected ? " selected" : ""}`;
+        el.dataset.type = "terrain";
+        el.dataset.id = t.id;
+        el.style.left = `${t.xPct}%`;
+        el.style.top = `${t.yPct}%`;
+        el.style.width = `${t.wPct}%`;
+        el.style.height = `${t.hPct}%`;
+        el.style.marginLeft = `${-t.wPct / 2}%`;
+        el.style.marginTop = `${-t.hPct / 2}%`;
+        el.style.transform = `rotate(${t.rotation}deg)`;
+        el.innerHTML = `
+          <span class="terrain-label">${t.type}</span>
+          <span class="resize-handle n" data-edge="n"></span>
+          <span class="resize-handle e" data-edge="e"></span>
+          <span class="resize-handle s" data-edge="s"></span>
+          <span class="resize-handle w" data-edge="w"></span>
+        `;
+        board.appendChild(el);
+      }
+      renderLos();
+      updateSelectedInfo();
+      updateTurnPill();
+    }
+
+    function renderLos() {
+      if (!losState) {
+        losLine.setAttribute("visibility", "hidden");
+        return;
+      }
+      const u = findUnit(losState.unitId);
+      if (!u) {
+        losState = null;
+        losLine.setAttribute("visibility", "hidden");
+        return;
+      }
+      losLine.setAttribute("x1", String(u.xPct));
+      losLine.setAttribute("y1", String(u.yPct));
+      losLine.setAttribute("x2", String(losState.xPct));
+      losLine.setAttribute("y2", String(losState.yPct));
+      losLine.setAttribute("visibility", "visible");
+    }
+
+    function updateTurnPill() {
+      turnPill.textContent = `Turn: Player ${currentTurn}`;
+      turnPill.className = `pill ${currentTurn === "A" ? "team-a" : "team-b"}`;
+    }
+
+    function findUnit(id) {
+      return units.find((u) => u.id === id);
+    }
+
+    function findTerrain(id) {
+      return terrains.find((t) => t.id === id);
+    }
+
+    function findEntity(type, id) {
+      return type === "unit" ? findUnit(id) : findTerrain(id);
+    }
+
+    function updateSelectedInfo() {
+      const entity = findEntity(selectedType, selectedId);
+      if (!entity) {
+        selectedInfo.textContent = "No unit or terrain selected.";
+        return;
+      }
+      if (selectedType === "unit") {
+        const u = entity;
+        const teamName = u.team === "A" ? "Player A" : "Player B";
+        selectedInfo.innerHTML = `
+          <strong>${u.id}</strong> (${teamName})<br>
+          Position: ${u.xPct.toFixed(1)}%, ${u.yPct.toFixed(1)}%<br>
+          State: ${u.lying ? "Lying (knocked down)" : "Standing"}<br>
+          Rotation: ${u.rotation}deg
+        `;
+      } else {
+        const t = entity;
+        selectedInfo.innerHTML = `
+          <strong>${t.id}</strong> (Terrain: ${t.type})<br>
+          Position: ${t.xPct.toFixed(1)}%, ${t.yPct.toFixed(1)}%<br>
+          Rotation: ${t.rotation}deg<br>
+          Size: ${t.wPct.toFixed(1)}% x ${t.hPct.toFixed(1)}%
+        `;
+      }
+    }
+
+    function boardPctFromEvent(e) {
+      const r = board.getBoundingClientRect();
+      const x = ((e.clientX - r.left) / r.width) * 100;
+      const y = ((e.clientY - r.top) / r.height) * 100;
+      return { xPct: clamp(x, 2, 98), yPct: clamp(y, 2, 98) };
+    }
+
+    function startLosFromUnit(unitId, e) {
+      const u = findUnit(unitId);
+      if (!u) return;
+      const p = boardPctFromEvent(e);
+      losState = { unitId: u.id, xPct: p.xPct, yPct: p.yPct };
+      selectedType = "unit";
+      selectedId = u.id;
+      log(`Line-of-sight started from ${u.id}.`);
+      render();
+    }
+
+    board.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      const handle = e.target.closest(".resize-handle");
+      if (handle) return;
+      const target = e.target.closest(".unit, .terrain");
+      if (!target) return;
+      const id = target.dataset.id;
+      const type = target.dataset.type;
+      if (type === "unit") {
+        const now = Date.now();
+        if (lastUnitClick && lastUnitClick.id === id && (now - lastUnitClick.time) < 320) {
+          startLosFromUnit(id, e);
+          lastUnitClick = null;
+          return;
+        }
+        lastUnitClick = { id, time: now };
+      }
+      selectedId = id;
+      selectedType = type;
+      const entity = findEntity(type, id);
+      dragState = { id, type, pointerId: e.pointerId };
+      if (type === "unit" && entity) {
+        dragState.startXPct = entity.xPct;
+        dragState.startYPct = entity.yPct;
+        moveReadout.style.display = "block";
+        moveReadout.textContent = "Moved: 0.0 cm";
+        moveReadout.style.left = `${entity.xPct}%`;
+        moveReadout.style.top = `${clamp(entity.yPct - 6, 4, 96)}%`;
+      } else {
+        moveReadout.style.display = "none";
+      }
+      target.classList.add("dragging");
+      board.setPointerCapture(e.pointerId);
+      if (entity) log(`Selected ${entity.id}.`);
+      render();
+    });
+
+    board.addEventListener("pointermove", (e) => {
+      if (losState) {
+        const p = boardPctFromEvent(e);
+        losState.xPct = p.xPct;
+        losState.yPct = p.yPct;
+        renderLos();
+      }
+      if (resizeState && resizeState.pointerId === e.pointerId) {
+        const t = findTerrain(resizeState.id);
+        if (!t) return;
+        const r = board.getBoundingClientRect();
+        const dxPct = ((e.clientX - resizeState.startClientX) / r.width) * 100;
+        const dyPct = ((e.clientY - resizeState.startClientY) / r.height) * 100;
+        const minWPct = 4;
+        const minHPct = 3;
+        const maxWPct = 40;
+        const maxHPct = 40;
+        let w = resizeState.startW;
+        let h = resizeState.startH;
+        let x = resizeState.startX;
+        let y = resizeState.startY;
+        if (resizeState.edge === "e") {
+          w = clamp(resizeState.startW + dxPct, minWPct, maxWPct);
+          x = resizeState.startX + (w - resizeState.startW) / 2;
+        } else if (resizeState.edge === "w") {
+          w = clamp(resizeState.startW - dxPct, minWPct, maxWPct);
+          x = resizeState.startX + (resizeState.startW - w) / 2;
+        } else if (resizeState.edge === "s") {
+          h = clamp(resizeState.startH + dyPct, minHPct, maxHPct);
+          y = resizeState.startY + (h - resizeState.startH) / 2;
+        } else if (resizeState.edge === "n") {
+          h = clamp(resizeState.startH - dyPct, minHPct, maxHPct);
+          y = resizeState.startY + (resizeState.startH - h) / 2;
+        }
+        t.wPct = w;
+        t.hPct = h;
+        t.xPct = clamp(x, w / 2, 100 - w / 2);
+        t.yPct = clamp(y, h / 2, 100 - h / 2);
+        render();
+        return;
+      }
+      if (!dragState || dragState.pointerId !== e.pointerId) return;
+      const entity = findEntity(dragState.type, dragState.id);
+      if (!entity) return;
+      const p = boardPctFromEvent(e);
+      entity.xPct = p.xPct;
+      entity.yPct = p.yPct;
+      if (dragState.type === "unit") {
+        const dxCm = (entity.xPct - dragState.startXPct) * 0.5;
+        const dyCm = (entity.yPct - dragState.startYPct) * 0.5;
+        const distCm = Math.sqrt(dxCm * dxCm + dyCm * dyCm);
+        moveReadout.style.display = "block";
+        moveReadout.textContent = `Moved: ${distCm.toFixed(1)} cm`;
+        moveReadout.style.left = `${entity.xPct}%`;
+        moveReadout.style.top = `${clamp(entity.yPct - 6, 4, 96)}%`;
+      }
+      render();
+    });
+
+    board.addEventListener("pointerup", (e) => {
+      if (resizeState && resizeState.pointerId === e.pointerId) {
+        const t = findTerrain(resizeState.id);
+        if (t) log(`Resized ${t.id} to ${t.wPct.toFixed(1)}% x ${t.hPct.toFixed(1)}%.`);
+        resizeState = null;
+        render();
+        return;
+      }
+      if (!dragState || dragState.pointerId !== e.pointerId) return;
+      const entity = findEntity(dragState.type, dragState.id);
+      if (entity) log(`Moved ${entity.id} to ${entity.xPct.toFixed(1)}%, ${entity.yPct.toFixed(1)}%.`);
+      dragState = null;
+      moveReadout.style.display = "none";
+      render();
+    });
+
+    board.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      const handle = e.target.closest(".resize-handle");
+      if (!handle) return;
+      const terrainEl = handle.closest(".terrain");
+      if (!terrainEl) return;
+      const t = findTerrain(terrainEl.dataset.id);
+      if (!t) return;
+      e.preventDefault();
+      e.stopPropagation();
+      selectedType = "terrain";
+      selectedId = t.id;
+      resizeState = {
+        id: t.id,
+        edge: handle.dataset.edge,
+        pointerId: e.pointerId,
+        startClientX: e.clientX,
+        startClientY: e.clientY,
+        startW: t.wPct,
+        startH: t.hPct,
+        startX: t.xPct,
+        startY: t.yPct
+      };
+      board.setPointerCapture(e.pointerId);
+      render();
+    });
+
+    board.addEventListener("pointerover", (e) => {
+      const target = e.target.closest(".unit, .terrain");
+      if (!target) return;
+      hovered = { type: target.dataset.type, id: target.dataset.id };
+    });
+
+    board.addEventListener("pointerout", (e) => {
+      const target = e.target.closest(".unit, .terrain");
+      if (!target || !hovered) return;
+      if (hovered.id === target.dataset.id && hovered.type === target.dataset.type) hovered = null;
+    });
+
+    board.addEventListener("contextmenu", (e) => {
+      if (losState) {
+        e.preventDefault();
+        log(`Stopped line-of-sight from ${losState.unitId}.`);
+        losState = null;
+        renderLos();
+        return;
+      }
+      const target = e.target.closest(".unit, .terrain");
+      if (!target) return;
+      e.preventDefault();
+      const type = target.dataset.type;
+      const id = target.dataset.id;
+      if (type === "unit") {
+        const u = findUnit(id);
+        if (!u) return;
+        u.lying = !u.lying;
+        selectedType = "unit";
+        selectedId = u.id;
+        log(`${u.id} is now ${u.lying ? "lying" : "standing"}.`);
+      } else {
+        const t = findTerrain(id);
+        if (!t) return;
+        terrains = terrains.filter((x) => x.id !== t.id);
+        if (selectedType === "terrain" && selectedId === t.id) selectedId = null;
+        log(`Removed terrain ${t.id}.`);
+      }
+      render();
+    });
+
+    board.addEventListener("dblclick", (e) => {
+      const unitEl = e.target.closest(".unit");
+      if (!unitEl) return;
+      startLosFromUnit(unitEl.dataset.id, e);
+    });
+
+    function toggleSelectedLying() {
+      const u = findUnit(selectedId);
+      if (!u || selectedType !== "unit") return;
+      u.lying = !u.lying;
+      log(`${u.id} is now ${u.lying ? "lying" : "standing"}.`);
+      render();
+    }
+
+    function deleteSelected() {
+      if (selectedType === "unit") {
+        const u = findUnit(selectedId);
+        if (!u) return;
+        units = units.filter((x) => x.id !== selectedId);
+        log(`Deleted ${u.id}.`);
+      } else {
+        const t = findTerrain(selectedId);
+        if (!t) return;
+        terrains = terrains.filter((x) => x.id !== selectedId);
+        log(`Deleted terrain ${t.id}.`);
+      }
+      selectedId = null;
+      render();
+    }
+
+    function rotateEntity(type, id, deltaDeg) {
+      const entity = findEntity(type, id);
+      if (!entity) return;
+      entity.rotation = ((entity.rotation + deltaDeg) % 360 + 360) % 360;
+      render();
+    }
+
+    function rollDice(count, hitOn) {
+      const rolls = Array.from({ length: count }, () => 1 + Math.floor(Math.random() * 6));
+      const hit = rolls.some((r) => r >= hitOn);
+      diceTray.innerHTML = "";
+      for (const r of rolls) {
+        const d = document.createElement("div");
+        d.className = `die${r >= hitOn ? " hit" : ""}`;
+        d.textContent = String(r);
+        diceTray.appendChild(d);
+      }
+      rollResult.innerHTML = `<strong>${hit ? "HIT!" : "Miss"}</strong> Rolled: ${rolls.join(", ")} (need ${hitOn}+)`;
+      log(`Rolled ${count}d6 on ${hitOn}+: [${rolls.join(", ")}] => ${hit ? "HIT" : "MISS"}`);
+    }
+
+    function setShootPreset() {
+      let dice = 1;
+      if (document.getElementById("closeRange").checked) dice += 1;
+      if (document.getElementById("openShot").checked) dice += 1;
+      if (document.getElementById("supportFire").checked) dice += 1;
+      diceCountInput.value = dice;
+      hitOnSelect.value = "5";
+      log(`Shoot preset: ${dice} dice (5+ to hit).`);
+    }
+
+    function setHealPreset() {
+      let dice = 1;
+      if (document.getElementById("hiddenHeal").checked) dice += 1;
+      diceCountInput.value = dice;
+      hitOnSelect.value = "5";
+      log(`Heal preset: ${dice} dice (5+ to heal).`);
+    }
+
+    document.getElementById("toggleLyingBtn").addEventListener("click", toggleSelectedLying);
+    document.getElementById("deleteUnitBtn").addEventListener("click", deleteSelected);
+    document.getElementById("addA").addEventListener("click", () => createUnit("A", 50, 92));
+    document.getElementById("addB").addEventListener("click", () => createUnit("B", 50, 8));
+
+    document.getElementById("setupBtn").addEventListener("click", setupDefault);
+    document.getElementById("clearBtn").addEventListener("click", () => {
+      units = [];
+      terrains = [];
+      selectedId = null;
+      nextUnitNumber = { A: 1, B: 1 };
+      nextTerrainId = 1;
+      render();
+      log("Cleared all units and terrain.");
+    });
+
+    document.getElementById("nextTurnBtn").addEventListener("click", () => {
+      currentTurn = currentTurn === "A" ? "B" : "A";
+      render();
+      log(`Now Player ${currentTurn}'s turn.`);
+    });
+
+    document.getElementById("rollBtn").addEventListener("click", () => {
+      const c = clamp(Number(diceCountInput.value) || 1, 1, 10);
+      const h = Number(hitOnSelect.value);
+      diceCountInput.value = c;
+      rollDice(c, h);
+    });
+    document.getElementById("presetShootBtn").addEventListener("click", setShootPreset);
+    document.getElementById("presetHealBtn").addEventListener("click", setHealPreset);
+
+    board.addEventListener("wheel", (e) => {
+      const target = e.target.closest(".unit, .terrain");
+      const focus = target ? { type: target.dataset.type, id: target.dataset.id } : hovered;
+      if (!focus) return;
+      e.preventDefault();
+      rotateEntity(focus.type, focus.id, e.deltaY > 0 ? 10 : -10);
+    }, { passive: false });
+
+    terrainTray.addEventListener("dragstart", (e) => {
+      const chip = e.target.closest(".terrain-chip");
+      if (!chip) return;
+      e.dataTransfer.setData("text/plain", chip.dataset.terrainType);
+    });
+
+    terrainTray.querySelectorAll(".terrain-chip").forEach((chip) => {
+      chip.setAttribute("draggable", "true");
+    });
+
+    board.addEventListener("dragover", (e) => {
+      e.preventDefault();
+    });
+
+    board.addEventListener("drop", (e) => {
+      e.preventDefault();
+      const type = e.dataTransfer.getData("text/plain");
+      if (!type) return;
+      const p = boardPctFromEvent(e);
+      createTerrain(type, p.xPct, p.yPct, 0);
+    });
+
+    window.addEventListener("keydown", (e) => {
+      if (e.key.toLowerCase() === "l") toggleSelectedLying();
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        const focus = hovered || (selectedId ? { type: selectedType, id: selectedId } : null);
+        if (focus) {
+          e.preventDefault();
+          rotateEntity(focus.type, focus.id, e.key === "ArrowLeft" ? -10 : 10);
+        }
+      }
+      if (e.key === "Delete" || e.key === "Backspace") deleteSelected();
+    });
+
+    setupDefault();
+  </script>
+</body>
+</html>
