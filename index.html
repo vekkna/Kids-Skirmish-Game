@@ -62,6 +62,41 @@
       margin-bottom: 8px;
     }
 
+    .dice-buttons {
+      margin-top: 6px;
+    }
+
+    .dice-buttons button {
+      flex: 1;
+      min-width: 100px;
+      padding: 12px 10px;
+      font-size: 1.05rem;
+      font-weight: 700;
+    }
+
+    .builder {
+      margin-top: 12px;
+    }
+
+    .builder h2 {
+      margin-bottom: 6px;
+    }
+
+    .builder .terrain-tray {
+      margin-top: 0;
+      min-height: 54px;
+    }
+
+    .builder .terrain-chip {
+      width: 64px;
+      height: 40px;
+      border-style: solid;
+    }
+
+    .legacy-controls {
+      display: none;
+    }
+
     button, select, input {
       font: inherit;
     }
@@ -129,7 +164,7 @@
       position: absolute;
       left: 0;
       top: 0;
-      transform: translate(-50%, -130%);
+      transform: translate(-50%, 30%);
       z-index: 3;
       background: #ffffffd9;
       border: 1px solid #bfae93;
@@ -198,12 +233,16 @@
       outline-offset: 2px;
     }
     .unit.selected { outline: 3px solid #fff; box-shadow: 0 0 0 3px #21252955; }
-    .unit.lying { filter: grayscale(1) brightness(.8); }
-    .unit .badge {
-      font-size: .7rem;
-      background: #ffffffcc;
-      border-radius: 999px;
-      padding: 2px 6px;
+    .unit.lying { filter: brightness(.5) saturate(.65); }
+    .unit.lying .facing-arrow { opacity: .7; }
+    .unit .facing-arrow {
+      width: 0;
+      height: 0;
+      border-left: 9px solid transparent;
+      border-right: 9px solid transparent;
+      border-bottom: 14px solid #ffffff;
+      filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
+      transform: translateY(-3px);
     }
 
     .terrain {
@@ -319,67 +358,48 @@
 <body>
   <main class="app">
     <section class="panel">
-      <h1>Table Troops Playtest Board</h1>
-      <div class="row">
+      <h1>Dice Roller</h1>
+      <div class="row dice-buttons">
+        <button id="roll1Btn" class="primary">1d6</button>
+        <button id="roll2Btn" class="primary">2d6</button>
+      </div>
+      <div id="diceTray" class="dice"></div>
+      <div class="builder">
+        <h2>Terrain</h2>
+        <div class="terrain-tray" id="terrainTray">
+          <div class="terrain-chip" data-terrain-type="Terrain" aria-label="Terrain block" title="Drag to board"></div>
+        </div>
+      </div>
+
+      <div class="legacy-controls" aria-hidden="true">
         <span id="turnPill" class="pill team-a">Turn: Player A</span>
-        <button id="nextTurnBtn">Next Turn</button>
-      </div>
-      <div class="row">
-        <button id="setupBtn" class="primary">Reset 5v5 Setup</button>
-        <button id="clearBtn">Clear Units</button>
-      </div>
-      <div class="hint">Drag units and terrain. Hover an item and use mouse wheel or left/right arrow keys to rotate it.</div>
-      <div class="hint">Double-click a unit for line-of-sight mode; right-click to stop LOS. Right-click unit toggles lying, right-click terrain removes it.</div>
+        <button id="nextTurnBtn" type="button">Next Turn</button>
+        <button id="setupBtn" class="primary" type="button">Reset 5v5 Setup</button>
+        <button id="clearBtn" type="button">Clear Units</button>
 
-      <h2>Terrain Palette</h2>
-      <div class="terrain-tray" id="terrainTray">
-        <div class="terrain-chip" data-terrain-type="Wall">Wall</div>
-        <div class="terrain-chip" data-terrain-type="Crate">Crate</div>
-        <div class="terrain-chip" data-terrain-type="Rock">Rock</div>
-        <div class="terrain-chip" data-terrain-type="Barricade">Cover</div>
-      </div>
+        <div class="terrain-tray"></div>
 
-      <h2>Selected Piece</h2>
-      <div id="selectedInfo" class="results">No unit or terrain selected.</div>
-      <div class="row">
-        <button id="toggleLyingBtn">Toggle Lying / Standing</button>
-        <button id="deleteUnitBtn">Delete Unit</button>
-      </div>
-      <div class="row">
-        <button id="addA">Add Player A Unit</button>
-        <button id="addB">Add Player B Unit</button>
-      </div>
+        <div id="selectedInfo" class="results">No unit or terrain selected.</div>
+        <button id="toggleLyingBtn" type="button">Toggle Lying / Standing</button>
+        <button id="deleteUnitBtn" type="button">Delete Unit</button>
+        <button id="addA" type="button">Add Player A Unit</button>
+        <button id="addB" type="button">Add Player B Unit</button>
 
-      <h2>Dice Roller</h2>
-      <div class="row">
-        <label for="diceCount">Dice:</label>
-        <input id="diceCount" type="number" min="1" max="10" value="1" style="width:70px;">
-        <label for="hitOn">Hit On:</label>
+        <input id="diceCount" type="number" min="1" max="10" value="1">
         <select id="hitOn">
           <option value="5">5+ (normal)</option>
           <option value="6">6 only (fire back)</option>
         </select>
-        <button id="rollBtn" class="primary">Roll</button>
-      </div>
+        <button id="rollBtn" type="button">Roll</button>
+        <button id="presetShootBtn" type="button">Preset Shoot Dice</button>
+        <button id="presetHealBtn" type="button">Preset Heal Dice</button>
 
-      <div class="row">
-        <button id="presetShootBtn">Preset Shoot Dice</button>
-        <button id="presetHealBtn">Preset Heal Dice</button>
+        <input type="checkbox" id="closeRange">
+        <input type="checkbox" id="openShot">
+        <input type="checkbox" id="supportFire">
+        <input type="checkbox" id="hiddenHeal">
+        <div class="log" id="log"></div>
       </div>
-
-      <div class="row">
-        <label><input type="checkbox" id="closeRange"> Close Range</label>
-        <label><input type="checkbox" id="openShot"> Open Shot</label>
-        <label><input type="checkbox" id="supportFire"> Supporting Fire</label>
-      </div>
-      <div class="row">
-        <label><input type="checkbox" id="hiddenHeal"> Hidden (for heal)</label>
-      </div>
-
-      <div id="rollResult" class="results">Roll results will appear here.</div>
-      <div id="diceTray" class="dice"></div>
-
-      <div class="log" id="log"></div>
     </section>
 
     <section class="board-wrap">
@@ -402,8 +422,9 @@
     const terrainTray = document.getElementById("terrainTray");
     const diceCountInput = document.getElementById("diceCount");
     const hitOnSelect = document.getElementById("hitOn");
-    const rollResult = document.getElementById("rollResult");
     const diceTray = document.getElementById("diceTray");
+    const roll1Btn = document.getElementById("roll1Btn");
+    const roll2Btn = document.getElementById("roll2Btn");
     const losLine = document.getElementById("losLine");
     const moveReadout = document.getElementById("moveReadout");
 
@@ -415,7 +436,6 @@
     let resizeState = null;
     let hovered = null;
     let losState = null;
-    let lastUnitClick = null;
     let nextUnitNumber = { A: 1, B: 1 };
     let nextTerrainId = 1;
     let currentTurn = "A";
@@ -432,18 +452,34 @@
       return Math.min(max, Math.max(min, n));
     }
 
-    function createUnit(team, xPct, yPct, lying = false) {
+    function createUnit(team, xPct, yPct, lying = false, rotation = null) {
       const id = `${team}${nextUnitNumber[team]++}`;
-      units.push({ id, team, xPct, yPct, lying, rotation: 0 });
+      const defaultRotation = team === "A" ? 0 : 180;
+      units.push({ id, team, xPct, yPct, lying, rotation: rotation ?? defaultRotation });
       render();
       log(`Added ${team === "A" ? "Player A" : "Player B"} unit ${id}.`);
     }
 
-    function createTerrain(type, xPct, yPct, rotation = 0) {
+    function createTerrain(type, xPct, yPct, rotation = 0, wPct = 12, hPct = 7) {
       const id = `T${nextTerrainId++}`;
-      terrains.push({ id, type, xPct, yPct, rotation, wPct: 12, hPct: 7 });
+      terrains.push({ id, type, xPct, yPct, rotation, wPct, hPct });
       render();
       log(`Placed terrain ${id} (${type}).`);
+    }
+
+    function seedDefaultTerrain() {
+      const slots = [
+        { x: 20, y: 26 }, { x: 50, y: 24 }, { x: 80, y: 26 },
+        { x: 20, y: 74 }, { x: 50, y: 76 }, { x: 80, y: 74 }
+      ];
+      slots.forEach((slot) => {
+        const x = clamp(slot.x + (Math.random() * 10 - 5), 10, 90);
+        const y = clamp(slot.y + (Math.random() * 10 - 5), 10, 90);
+        const rot = Math.round((Math.random() * 40) - 20);
+        const w = 10 + Math.random() * 5;
+        const h = 6 + Math.random() * 3;
+        createTerrain("Terrain", x, y, rot, w, h);
+      });
     }
 
     function setupDefault() {
@@ -458,6 +494,7 @@
         createUnit("A", x, 92 - (i % 2) * 3);
         createUnit("B", x, 8 + (i % 2) * 3);
       });
+      seedDefaultTerrain();
       log("Reset board with 5 units per side.");
       render();
     }
@@ -471,7 +508,7 @@
           ghost.style.left = `${dragState.startXPct}%`;
           ghost.style.top = `${dragState.startYPct}%`;
           ghost.style.transform = `rotate(${u.rotation}deg)`;
-          ghost.innerHTML = `<span class="badge">${u.id}</span>`;
+          ghost.innerHTML = `<span class="facing-arrow"></span>`;
           board.appendChild(ghost);
         }
         const el = document.createElement("div");
@@ -482,7 +519,7 @@
         el.style.left = `${u.xPct}%`;
         el.style.top = `${u.yPct}%`;
         el.style.transform = `rotate(${u.rotation}deg)`;
-        el.innerHTML = `<span class="badge">${u.id}</span>`;
+        el.innerHTML = `<span class="facing-arrow"></span>`;
         board.appendChild(el);
       }
       for (const t of terrains) {
@@ -591,7 +628,21 @@
       render();
     }
 
+    function unitFromEvent(e) {
+      const unitEl = e.target.closest(".unit");
+      if (unitEl) return findUnit(unitEl.dataset.id);
+      const p = boardPctFromEvent(e);
+      return units.find((u) => Math.abs(u.xPct - p.xPct) <= 3 && Math.abs(u.yPct - p.yPct) <= 3) || null;
+    }
+
     board.addEventListener("pointerdown", (e) => {
+      if (e.button === 2) {
+        const unitEl = e.target.closest(".unit");
+        if (!unitEl) return;
+        e.preventDefault();
+        startLosFromUnit(unitEl.dataset.id, e);
+        return;
+      }
       if (e.button !== 0) return;
       const handle = e.target.closest(".resize-handle");
       if (handle) return;
@@ -599,15 +650,6 @@
       if (!target) return;
       const id = target.dataset.id;
       const type = target.dataset.type;
-      if (type === "unit") {
-        const now = Date.now();
-        if (lastUnitClick && lastUnitClick.id === id && (now - lastUnitClick.time) < 320) {
-          startLosFromUnit(id, e);
-          lastUnitClick = null;
-          return;
-        }
-        lastUnitClick = { id, time: now };
-      }
       selectedId = id;
       selectedType = type;
       const entity = findEntity(type, id);
@@ -618,7 +660,7 @@
         moveReadout.style.display = "block";
         moveReadout.textContent = "Moved: 0.0 cm";
         moveReadout.style.left = `${entity.xPct}%`;
-        moveReadout.style.top = `${clamp(entity.yPct - 6, 4, 96)}%`;
+        moveReadout.style.top = `${clamp(entity.yPct + 6, 4, 96)}%`;
       } else {
         moveReadout.style.display = "none";
       }
@@ -682,12 +724,18 @@
         moveReadout.style.display = "block";
         moveReadout.textContent = `Moved: ${distCm.toFixed(1)} cm`;
         moveReadout.style.left = `${entity.xPct}%`;
-        moveReadout.style.top = `${clamp(entity.yPct - 6, 4, 96)}%`;
+        moveReadout.style.top = `${clamp(entity.yPct + 6, 4, 96)}%`;
       }
       render();
     });
 
     board.addEventListener("pointerup", (e) => {
+      if (e.button === 2 && losState) {
+        log(`Stopped line-of-sight from ${losState.unitId}.`);
+        losState = null;
+        renderLos();
+        return;
+      }
       if (resizeState && resizeState.pointerId === e.pointerId) {
         const t = findTerrain(resizeState.id);
         if (t) log(`Resized ${t.id} to ${t.wPct.toFixed(1)}% x ${t.hPct.toFixed(1)}%.`);
@@ -697,6 +745,19 @@
       }
       if (!dragState || dragState.pointerId !== e.pointerId) return;
       const entity = findEntity(dragState.type, dragState.id);
+      if (entity && dragState.type === "terrain") {
+        const trayRect = terrainTray.getBoundingClientRect();
+        const droppedInTray = e.clientX >= trayRect.left && e.clientX <= trayRect.right && e.clientY >= trayRect.top && e.clientY <= trayRect.bottom;
+        if (droppedInTray) {
+          terrains = terrains.filter((x) => x.id !== entity.id);
+          if (selectedType === "terrain" && selectedId === entity.id) selectedId = null;
+          log(`Removed terrain ${entity.id}.`);
+          dragState = null;
+          moveReadout.style.display = "none";
+          render();
+          return;
+        }
+      }
       if (entity) log(`Moved ${entity.id} to ${entity.xPct.toFixed(1)}%, ${entity.yPct.toFixed(1)}%.`);
       dragState = null;
       moveReadout.style.display = "none";
@@ -743,39 +804,17 @@
     });
 
     board.addEventListener("contextmenu", (e) => {
-      if (losState) {
-        e.preventDefault();
-        log(`Stopped line-of-sight from ${losState.unitId}.`);
-        losState = null;
-        renderLos();
-        return;
-      }
-      const target = e.target.closest(".unit, .terrain");
-      if (!target) return;
       e.preventDefault();
-      const type = target.dataset.type;
-      const id = target.dataset.id;
-      if (type === "unit") {
-        const u = findUnit(id);
-        if (!u) return;
-        u.lying = !u.lying;
-        selectedType = "unit";
-        selectedId = u.id;
-        log(`${u.id} is now ${u.lying ? "lying" : "standing"}.`);
-      } else {
-        const t = findTerrain(id);
-        if (!t) return;
-        terrains = terrains.filter((x) => x.id !== t.id);
-        if (selectedType === "terrain" && selectedId === t.id) selectedId = null;
-        log(`Removed terrain ${t.id}.`);
-      }
-      render();
     });
 
     board.addEventListener("dblclick", (e) => {
-      const unitEl = e.target.closest(".unit");
-      if (!unitEl) return;
-      startLosFromUnit(unitEl.dataset.id, e);
+      const u = unitFromEvent(e);
+      if (!u) return;
+      u.lying = !u.lying;
+      selectedType = "unit";
+      selectedId = u.id;
+      log(`${u.id} is now ${u.lying ? "down" : "standing"}.`);
+      render();
     });
 
     function toggleSelectedLying() {
@@ -809,18 +848,16 @@
       render();
     }
 
-    function rollDice(count, hitOn) {
+    function rollDice(count) {
       const rolls = Array.from({ length: count }, () => 1 + Math.floor(Math.random() * 6));
-      const hit = rolls.some((r) => r >= hitOn);
       diceTray.innerHTML = "";
       for (const r of rolls) {
         const d = document.createElement("div");
-        d.className = `die${r >= hitOn ? " hit" : ""}`;
+        d.className = "die";
         d.textContent = String(r);
         diceTray.appendChild(d);
       }
-      rollResult.innerHTML = `<strong>${hit ? "HIT!" : "Miss"}</strong> Rolled: ${rolls.join(", ")} (need ${hitOn}+)`;
-      log(`Rolled ${count}d6 on ${hitOn}+: [${rolls.join(", ")}] => ${hit ? "HIT" : "MISS"}`);
+      log(`Rolled ${count}d6: [${rolls.join(", ")}]`);
     }
 
     function setShootPreset() {
@@ -865,12 +902,13 @@
 
     document.getElementById("rollBtn").addEventListener("click", () => {
       const c = clamp(Number(diceCountInput.value) || 1, 1, 10);
-      const h = Number(hitOnSelect.value);
       diceCountInput.value = c;
-      rollDice(c, h);
+      rollDice(c);
     });
     document.getElementById("presetShootBtn").addEventListener("click", setShootPreset);
     document.getElementById("presetHealBtn").addEventListener("click", setHealPreset);
+    roll1Btn.addEventListener("click", () => rollDice(1));
+    roll2Btn.addEventListener("click", () => rollDice(2));
 
     board.addEventListener("wheel", (e) => {
       const target = e.target.closest(".unit, .terrain");
