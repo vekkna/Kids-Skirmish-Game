@@ -190,16 +190,26 @@
     .terrain-chip {
       width: 56px;
       height: 34px;
-      border: 2px dashed #8f8069;
+      border: 2px solid transparent;
       border-radius: 8px;
-      background: #e9e0d2;
       display: grid;
       place-items: center;
       cursor: grab;
       user-select: none;
       font-size: .75rem;
       font-weight: 700;
+    }
+
+    .terrain-chip[data-terrain-type="Low Terrain"] {
+      border-color: #8f8069;
+      background: #e9e0d2;
       color: #5a503f;
+    }
+
+    .terrain-chip[data-terrain-type="High Terrain"] {
+      border-color: #4f7a45;
+      background: #d8e8cc;
+      color: #2f4f2a;
     }
 
     .terrain-chip:active { cursor: grabbing; }
@@ -249,7 +259,6 @@
       position: absolute;
       border: 2px solid #726249;
       border-radius: 8px;
-      background: linear-gradient(135deg, #d5cab8, #bfb096);
       box-shadow: 0 3px 8px rgba(0,0,0,.16);
       user-select: none;
       cursor: grab;
@@ -259,6 +268,19 @@
       font-size: .72rem;
       font-weight: 700;
       overflow: visible;
+    }
+
+    .terrain[data-terrain-type="Low Terrain"],
+    .terrain[data-terrain-type="Terrain"] {
+      border-color: #726249;
+      background: linear-gradient(135deg, #d5cab8, #bfb096);
+      color: #4f4435;
+    }
+
+    .terrain[data-terrain-type="High Terrain"] {
+      border-color: #4f7a45;
+      background: linear-gradient(135deg, #d8e8cc, #b8d9a2);
+      color: #2f4f2a;
     }
 
     .terrain.dragging { cursor: grabbing; filter: brightness(1.05); }
@@ -367,7 +389,8 @@
       <div class="builder">
         <h2>Terrain</h2>
         <div class="terrain-tray" id="terrainTray">
-          <div class="terrain-chip" data-terrain-type="Terrain" aria-label="Terrain block" title="Drag to board"></div>
+          <div class="terrain-chip" data-terrain-type="High Terrain" aria-label="High terrain block" title="Drag high terrain to board">High</div>
+          <div class="terrain-chip" data-terrain-type="Low Terrain" aria-label="Low terrain block" title="Drag low terrain to board">Low</div>
         </div>
       </div>
 
@@ -478,7 +501,7 @@
         const rot = Math.round((Math.random() * 40) - 20);
         const w = 10 + Math.random() * 5;
         const h = 6 + Math.random() * 3;
-        createTerrain("Terrain", x, y, rot, w, h);
+        createTerrain("Low Terrain", x, y, rot, w, h);
       });
     }
 
@@ -528,6 +551,7 @@
         el.className = `terrain${selected ? " selected" : ""}`;
         el.dataset.type = "terrain";
         el.dataset.id = t.id;
+        el.dataset.terrainType = t.type;
         el.style.left = `${t.xPct}%`;
         el.style.top = `${t.yPct}%`;
         el.style.width = `${t.wPct}%`;
