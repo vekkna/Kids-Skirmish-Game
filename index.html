@@ -243,6 +243,14 @@
       outline-offset: 2px;
     }
     .unit.selected { outline: 3px solid #fff; box-shadow: 0 0 0 3px #21252955; }
+    .unit.targetable {
+      outline: 4px solid #38d66b;
+      box-shadow: 0 0 0 4px #38d66b77, 0 0 12px #38d66b66;
+    }
+    .unit.blocked-target {
+      outline: 4px solid #ff4d4f;
+      box-shadow: 0 0 0 4px #ff4d4f77, 0 0 12px #ff4d4f66;
+    }
     .unit.lying { filter: brightness(.5) saturate(.65); }
     .unit.lying .facing-arrow { opacity: .7; }
     .unit .facing-arrow {
@@ -430,6 +438,7 @@
         <div class="edge top"></div>
         <div class="edge bottom"></div>
         <svg id="losLayer" class="los-layer" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <g id="threatLayer"></g>
           <line id="losLine" x1="0" y1="0" x2="0" y2="0" stroke="#111" stroke-width="0.35" stroke-dasharray="1.2 0.8" stroke-linecap="round" visibility="hidden"></line>
         </svg>
         <div id="moveReadout" class="move-readout"></div>
@@ -449,6 +458,7 @@
     const roll1Btn = document.getElementById("roll1Btn");
     const roll2Btn = document.getElementById("roll2Btn");
     const losLine = document.getElementById("losLine");
+    const threatLayer = document.getElementById("threatLayer");
     const moveReadout = document.getElementById("moveReadout");
 
     let units = [];
@@ -459,6 +469,7 @@
     let resizeState = null;
     let hovered = null;
     let losState = null;
+    let threatPreview = null;
     let nextUnitNumber = { A: 1, B: 1 };
     let nextTerrainId = 1;
     let currentTurn = "A";
@@ -524,6 +535,8 @@
 
     function render() {
       board.querySelectorAll(".unit, .terrain").forEach((el) => el.remove());
+      const targetableEnemyIds = getThreatReachableEnemyIds();
+      const blockedEnemyIds = getThreatBlockedEnemyIds();
       for (const u of units) {
         if (dragState && dragState.type === "unit" && dragState.id === u.id) {
           const ghost = document.createElement("div");
@@ -536,7 +549,9 @@
         }
         const el = document.createElement("div");
         const selected = selectedType === "unit" && u.id === selectedId;
-        el.className = `unit team-${u.team.toLowerCase()}${u.lying ? " lying" : ""}${selected ? " selected" : ""}`;
+        const targetable = targetableEnemyIds.has(u.id);
+        const blocked = blockedEnemyIds.has(u.id);
+        el.className = `unit team-${u.team.toLowerCase()}${u.lying ? " lying" : ""}${selected ? " selected" : ""}${targetable ? " targetable" : ""}${blocked ? " blocked-target" : ""}`;
         el.dataset.type = "unit";
         el.dataset.id = u.id;
         el.style.left = `${u.xPct}%`;
@@ -568,9 +583,150 @@
         `;
         board.appendChild(el);
       }
+      renderThreatPreview();
       renderLos();
       updateSelectedInfo();
       updateTurnPill();
+    }
+
+    function getThreatReachableEnemyIds() {
+      if (!threatPreview) return new Set();
+      const source = findUnit(threatPreview.unitId);
+      if (!source) return new Set();
+      const reachable = new Set();
+      units.forEach((u) => {
+        if (u.team === source.team) return;
+        if (!isShotBlocked(source, u)) reachable.add(u.id);
+      });
+      return reachable;
+    }
+
+    function getThreatBlockedEnemyIds() {
+      if (!threatPreview) return new Set();
+      const source = findUnit(threatPreview.unitId);
+      if (!source) return new Set();
+      const blocked = new Set();
+      units.forEach((u) => {
+        if (u.team === source.team) return;
+        if (isShotBlocked(source, u)) blocked.add(u.id);
+      });
+      return blocked;
+    }
+
+    function getUnitRadiusPct() {
+      const r = board.getBoundingClientRect();
+      return (26 / r.width) * 100;
+    }
+
+    function pointInRect(p, halfW, halfH) {
+      return p.x >= -halfW && p.x <= halfW && p.y >= -halfH && p.y <= halfH;
+    }
+
+    function orientation(a, b, c) {
+      return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+    }
+
+    function onSegment(a, b, p) {
+      const eps = 1e-6;
+      return p.x <= Math.max(a.x, b.x) + eps && p.x + eps >= Math.min(a.x, b.x) &&
+        p.y <= Math.max(a.y, b.y) + eps && p.y + eps >= Math.min(a.y, b.y);
+    }
+
+    function segmentsIntersect(a, b, c, d) {
+      const o1 = orientation(a, b, c);
+      const o2 = orientation(a, b, d);
+      const o3 = orientation(c, d, a);
+      const o4 = orientation(c, d, b);
+      const eps = 1e-6;
+
+      if (((o1 > eps && o2 < -eps) || (o1 < -eps && o2 > eps)) &&
+        ((o3 > eps && o4 < -eps) || (o3 < -eps && o4 > eps))) {
+        return true;
+      }
+      if (Math.abs(o1) <= eps && onSegment(a, b, c)) return true;
+      if (Math.abs(o2) <= eps && onSegment(a, b, d)) return true;
+      if (Math.abs(o3) <= eps && onSegment(c, d, a)) return true;
+      if (Math.abs(o4) <= eps && onSegment(c, d, b)) return true;
+      return false;
+    }
+
+    function segmentIntersectsRect(a, b, halfW, halfH) {
+      if (pointInRect(a, halfW, halfH) || pointInRect(b, halfW, halfH)) return true;
+      const tl = { x: -halfW, y: -halfH };
+      const tr = { x: halfW, y: -halfH };
+      const br = { x: halfW, y: halfH };
+      const bl = { x: -halfW, y: halfH };
+      return segmentsIntersect(a, b, tl, tr) || segmentsIntersect(a, b, tr, br) ||
+        segmentsIntersect(a, b, br, bl) || segmentsIntersect(a, b, bl, tl);
+    }
+
+    function worldPointToTerrainLocal(x, y, t) {
+      const rad = (-t.rotation * Math.PI) / 180;
+      const cos = Math.cos(rad);
+      const sin = Math.sin(rad);
+      const dx = x - t.xPct;
+      const dy = y - t.yPct;
+      return { x: dx * cos - dy * sin, y: dx * sin + dy * cos };
+    }
+
+    function segmentIntersectsTerrain(ax, ay, bx, by, t) {
+      const a = worldPointToTerrainLocal(ax, ay, t);
+      const b = worldPointToTerrainLocal(bx, by, t);
+      return segmentIntersectsRect(a, b, t.wPct / 2, t.hPct / 2);
+    }
+
+    function segmentIntersectsSoldier(ax, ay, bx, by, u, radiusPct) {
+      const dx = bx - ax;
+      const dy = by - ay;
+      const segLenSq = dx * dx + dy * dy;
+      if (segLenSq === 0) {
+        const ddx = ax - u.xPct;
+        const ddy = ay - u.yPct;
+        return ddx * ddx + ddy * ddy <= radiusPct * radiusPct;
+      }
+      let t = ((u.xPct - ax) * dx + (u.yPct - ay) * dy) / segLenSq;
+      t = clamp(t, 0, 1);
+      const px = ax + t * dx;
+      const py = ay + t * dy;
+      const ddx = px - u.xPct;
+      const ddy = py - u.yPct;
+      return ddx * ddx + ddy * ddy <= radiusPct * radiusPct;
+    }
+
+    function isShotBlocked(source, target) {
+      const ax = source.xPct;
+      const ay = source.yPct;
+      const bx = target.xPct;
+      const by = target.yPct;
+
+      if (terrains.some((terrain) => segmentIntersectsTerrain(ax, ay, bx, by, terrain))) {
+        return true;
+      }
+
+      const soldierRadiusPct = getUnitRadiusPct();
+      return units.some((u) => {
+        if (u.id === source.id || u.id === target.id) return false;
+        return segmentIntersectsSoldier(ax, ay, bx, by, u, soldierRadiusPct);
+      });
+    }
+
+    function renderThreatPreview() {
+      threatLayer.innerHTML = "";
+      if (!threatPreview) return;
+      const source = findUnit(threatPreview.unitId);
+      if (!source) return;
+      const enemies = units.filter((u) => u.team !== source.team);
+      for (const enemy of enemies) {
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("x1", String(source.xPct));
+        line.setAttribute("y1", String(source.yPct));
+        line.setAttribute("x2", String(enemy.xPct));
+        line.setAttribute("y2", String(enemy.yPct));
+        line.setAttribute("stroke", "#111");
+        line.setAttribute("stroke-width", "0.42");
+        line.setAttribute("stroke-linecap", "round");
+        threatLayer.appendChild(line);
+      }
     }
 
     function renderLos() {
@@ -678,6 +834,7 @@
       selectedType = type;
       const entity = findEntity(type, id);
       dragState = { id, type, pointerId: e.pointerId };
+      threatPreview = type === "unit" ? { unitId: id } : null;
       if (type === "unit" && entity) {
         dragState.startXPct = entity.xPct;
         dragState.startYPct = entity.yPct;
@@ -754,6 +911,8 @@
     });
 
     board.addEventListener("pointerup", (e) => {
+      const clearThreatPreview = e.button === 0 && threatPreview;
+      if (clearThreatPreview) threatPreview = null;
       if (e.button === 2 && losState) {
         log(`Stopped line-of-sight from ${losState.unitId}.`);
         losState = null;
@@ -767,7 +926,10 @@
         render();
         return;
       }
-      if (!dragState || dragState.pointerId !== e.pointerId) return;
+      if (!dragState || dragState.pointerId !== e.pointerId) {
+        if (clearThreatPreview) render();
+        return;
+      }
       const entity = findEntity(dragState.type, dragState.id);
       if (entity && dragState.type === "terrain") {
         const trayRect = terrainTray.getBoundingClientRect();
