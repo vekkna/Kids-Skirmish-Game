@@ -132,12 +132,14 @@
       width: min(86vmin, 900px);
       aspect-ratio: 1;
       position: relative;
-      border: 2px solid #8f8069;
+      border: 2px solid #2f4f3a;
       border-radius: 14px;
       background:
-        linear-gradient(90deg, rgba(0,0,0,.06) 1px, transparent 1px) 0 0 / 8.333% 8.333%,
-        linear-gradient(0deg, rgba(0,0,0,.06) 1px, transparent 1px) 0 0 / 8.333% 8.333%,
-        linear-gradient(180deg, #efe7d8, #e4dbc9);
+        radial-gradient(900px 550px at 18% 8%, #4e6f57 0%, transparent 45%),
+        radial-gradient(850px 600px at 88% 92%, #2f4734 0%, transparent 50%),
+        linear-gradient(90deg, rgba(255,255,255,.07) 1px, transparent 1px) 0 0 / 8.333% 8.333%,
+        linear-gradient(0deg, rgba(255,255,255,.07) 1px, transparent 1px) 0 0 / 8.333% 8.333%,
+        linear-gradient(180deg, #3a5a42, #244033);
       overflow: hidden;
       touch-action: none;
     }
@@ -221,19 +223,21 @@
       margin-left: -26px;
       margin-top: -26px;
       border-radius: 10px;
-      border: 2px solid #00000022;
-      color: #1a1a1a;
-      font-weight: 700;
+      border: 2px solid #00000044;
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
       display: grid;
       place-items: center;
       user-select: none;
       cursor: grab;
       transition: transform .12s ease, filter .12s ease, box-shadow .12s ease;
       box-shadow: 0 3px 8px rgba(0,0,0,.16);
+      overflow: hidden;
     }
 
-    .unit.team-a { background: var(--a); }
-    .unit.team-b { background: var(--b); }
+    .unit.team-a { background-image: url("soldier1.png"); }
+    .unit.team-b { background-image: url("soldier2.png"); }
     .unit.dragging { cursor: grabbing; filter: brightness(1.1); }
     .unit.ghost {
       pointer-events: none;
@@ -252,17 +256,6 @@
       box-shadow: 0 0 0 4px #ff4d4f77, 0 0 12px #ff4d4f66;
     }
     .unit.lying { filter: brightness(.5) saturate(.65); }
-    .unit.lying .facing-arrow { opacity: .7; }
-    .unit .facing-arrow {
-      width: 0;
-      height: 0;
-      border-left: 9px solid transparent;
-      border-right: 9px solid transparent;
-      border-bottom: 14px solid #ffffff;
-      filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
-      transform: translateY(-3px);
-    }
-
     .terrain {
       position: absolute;
       border: 2px solid #726249;
@@ -293,12 +286,6 @@
 
     .terrain.dragging { cursor: grabbing; filter: brightness(1.05); }
     .terrain.selected { outline: 3px solid #fff; box-shadow: 0 0 0 3px #21252955; }
-    .terrain-label {
-      pointer-events: none;
-      background: #ffffffb8;
-      border-radius: 999px;
-      padding: 2px 6px;
-    }
     .resize-handle {
       position: absolute;
       background: #fff;
@@ -346,6 +333,14 @@
       gap: 6px;
       flex-wrap: wrap;
       margin-top: 8px;
+      opacity: 1;
+      transform: translateY(0);
+      transition: opacity .14s ease, transform .14s ease;
+    }
+
+    .dice.fade-out {
+      opacity: 0;
+      transform: translateY(-3px);
     }
 
     .die {
@@ -357,6 +352,18 @@
       display: grid;
       place-items: center;
       font-weight: 700;
+      animation: die-in .18s ease;
+    }
+
+    @keyframes die-in {
+      from {
+        opacity: 0;
+        transform: translateY(3px) scale(.95);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
     }
 
     .die.hit { border-color: var(--good); color: var(--good); }
@@ -470,6 +477,7 @@
     let hovered = null;
     let losState = null;
     let threatPreview = null;
+    let diceSwapTimer = null;
     let nextUnitNumber = { A: 1, B: 1 };
     let nextTerrainId = 1;
     let currentTurn = "A";
@@ -525,8 +533,8 @@
       selectedType = "unit";
       const cols = [14, 32, 50, 68, 86];
       cols.forEach((x, i) => {
-        createUnit("A", x, 92 - (i % 2) * 3);
-        createUnit("B", x, 8 + (i % 2) * 3);
+        createUnit("A", x, 92 - (i % 2) * 3, false, 270);
+        createUnit("B", x, 8 + (i % 2) * 3, false, 90);
       });
       seedDefaultTerrain();
       log("Reset board with 5 units per side.");
@@ -544,7 +552,6 @@
           ghost.style.left = `${dragState.startXPct}%`;
           ghost.style.top = `${dragState.startYPct}%`;
           ghost.style.transform = `rotate(${u.rotation}deg)`;
-          ghost.innerHTML = `<span class="facing-arrow"></span>`;
           board.appendChild(ghost);
         }
         const el = document.createElement("div");
@@ -557,7 +564,6 @@
         el.style.left = `${u.xPct}%`;
         el.style.top = `${u.yPct}%`;
         el.style.transform = `rotate(${u.rotation}deg)`;
-        el.innerHTML = `<span class="facing-arrow"></span>`;
         board.appendChild(el);
       }
       for (const t of terrains) {
@@ -575,7 +581,6 @@
         el.style.marginTop = `${-t.hPct / 2}%`;
         el.style.transform = `rotate(${t.rotation}deg)`;
         el.innerHTML = `
-          <span class="terrain-label">${t.type}</span>
           <span class="resize-handle n" data-edge="n"></span>
           <span class="resize-handle e" data-edge="e"></span>
           <span class="resize-handle s" data-edge="s"></span>
@@ -1036,14 +1041,33 @@
 
     function rollDice(count) {
       const rolls = Array.from({ length: count }, () => 1 + Math.floor(Math.random() * 6));
-      diceTray.innerHTML = "";
-      for (const r of rolls) {
-        const d = document.createElement("div");
-        d.className = "die";
-        d.textContent = String(r);
-        diceTray.appendChild(d);
+      const renderRolls = () => {
+        diceTray.innerHTML = "";
+        for (const r of rolls) {
+          const d = document.createElement("div");
+          d.className = "die";
+          d.textContent = String(r);
+          diceTray.appendChild(d);
+        }
+        diceTray.classList.remove("fade-out");
+        log(`Rolled ${count}d6: [${rolls.join(", ")}]`);
+      };
+
+      if (diceSwapTimer) {
+        clearTimeout(diceSwapTimer);
+        diceSwapTimer = null;
       }
-      log(`Rolled ${count}d6: [${rolls.join(", ")}]`);
+
+      if (diceTray.children.length > 0) {
+        diceTray.classList.add("fade-out");
+        diceSwapTimer = setTimeout(() => {
+          renderRolls();
+          diceSwapTimer = null;
+        }, 150);
+        return;
+      }
+
+      renderRolls();
     }
 
     function setShootPreset() {
